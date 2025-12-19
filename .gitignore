@@ -1,0 +1,10 @@
+# Node
+backend/node_modules/
+backend/.env
+
+# Laravel (quando criar)
+frontend/vendor/
+frontend/.env
+frontend/storage/logs/
+frontend/storage/framework/
+frontend/bootstrap/cache/

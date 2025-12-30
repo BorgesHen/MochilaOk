@@ -1,0 +1,21 @@
+<h2>Login</h2>
+
+<p *ngIf="error" style="color:red">{{ error }}</p>
+
+<form [formGroup]="form" (ngSubmit)="submit()">
+  <div>
+    <label>Email</label><br />
+    <input formControlName="email" />
+  </div>
+
+  <div style="margin-top:10px;">
+    <label>Senha</label><br />
+    <input type="password" formControlName="password" />
+  </div>
+
+  <button style="margin-top:12px;" type="submit">Entrar</button>
+</form>
+
+<p style="margin-top:12px;">
+  Não tem conta? <a routerLink="/register">Criar conta</a>
+</p>

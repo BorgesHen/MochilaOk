@@ -14,6 +14,14 @@ if (process.env.NODE_ENV !== "production") {
 
 const app = express();
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:4200",
+    optionsSuccessStatus: 200
+}));
+
 app.use(cors({
     origin: process.env.CORS_ORIGIN || "http://localhost:4200",
     optionsSuccessStatus: 200

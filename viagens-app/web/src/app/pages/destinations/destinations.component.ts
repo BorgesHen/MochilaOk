@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -12,6 +12,10 @@ import { AuthService } from '../../services/auth.service';
   templateUrl: './destinations.component.html',
 })
 export class DestinationsComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private api = inject(DestinationsService);
+  public auth = inject(AuthService);
+
   destinations: any[] = [];
   error: string | null = null;
 
@@ -20,12 +24,6 @@ export class DestinationsComponent implements OnInit {
     location: [''],
   });
 
-  constructor(
-    private fb: FormBuilder,
-    private api: DestinationsService,
-    public auth: AuthService
-  ) {}
-
   ngOnInit() {
     this.load();
   }
@@ -33,8 +31,8 @@ export class DestinationsComponent implements OnInit {
   load() {
     this.error = null;
     this.api.list().subscribe({
-      next: (r) => this.destinations = r,
-      error: (e) => this.error = e?.error?.error ?? 'Erro ao carregar viagens',
+      next: (r: any[]) => (this.destinations = r),
+      error: (e: any) => (this.error = e?.error?.error ?? 'Erro ao carregar viagens'),
     });
   }
 
@@ -47,7 +45,7 @@ export class DestinationsComponent implements OnInit {
         this.form.reset();
         this.load();
       },
-      error: (e) => this.error = e?.error?.error ?? 'Erro ao criar viagem',
+      error: (e: any) => (this.error = e?.error?.error ?? 'Erro ao criar viagem'),
     });
   }
 }

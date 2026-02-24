@@ -1,4 +1,5 @@
 const { Pool } = require("pg");
+require("dotenv").config();
 
 function stripSslParams(url) {
   try {
@@ -16,9 +17,14 @@ function stripSslParams(url) {
 const raw = process.env.DATABASE_URL;
 if (!raw) throw new Error("DATABASE_URL não definida no .env");
 
+
+const isLocal =
+  raw.includes("localhost")
+  raw.includes("127.0.0.1");
+
 const pool = new Pool({
   connectionString: stripSslParams(raw),
-  ssl: { rejectUnauthorized: false }
+  ssl: isLocal ? false : { rejectUnauthorized: false }
 });
 
 module.exports = { pool };

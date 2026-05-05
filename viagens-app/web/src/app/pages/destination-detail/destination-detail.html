@@ -1,1 +1,136 @@
-<p>destination-detail works!</p>
+<p>
+  <a routerLink="/destinations">← Voltar para minhas viagens</a>
+</p>
+
+<h2>{{ destination?.title }}</h2>
+
+<p *ngIf="destination?.location">
+  Local: {{ destination.location }}
+</p>
+
+<p *ngIf="error" style="color: red">
+  {{ error }}
+</p>
+
+<hr />
+
+<h3>Criar categoria</h3>
+
+<form [formGroup]="categoryForm" (ngSubmit)="createCategory()">
+  <div>
+    <label>Nome da categoria</label><br />
+    <input formControlName="name" placeholder="Ex: Roupas, Higiene, Comida" />
+  </div>
+
+  <div style="margin-top: 10px">
+    <label>Modo</label><br />
+
+    <select formControlName="mode">
+      <option value="PER_USER">Cada pessoa precisa fazer</option>
+      <option value="CLAIMABLE">Uma pessoa assume o item</option>
+    </select>
+  </div>
+
+  <div style="margin-top: 10px">
+    <label>Ordem</label><br />
+    <input type="number" formControlName="sort_order" />
+  </div>
+
+  <button type="submit" style="margin-top: 12px">
+    Criar categoria
+  </button>
+</form>
+
+<hr />
+
+<h3>Criar item</h3>
+
+<form [formGroup]="itemForm" (ngSubmit)="createItem()">
+  <div>
+    <label>Categoria</label><br />
+
+    <select formControlName="category_id">
+      <option value="">Selecione uma categoria</option>
+
+      <option *ngFor="let c of categories" [value]="c.id">
+        {{ c.name }} — {{ c.mode }}
+      </option>
+    </select>
+  </div>
+
+  <div style="margin-top: 10px">
+    <label>Item</label><br />
+    <input formControlName="title" placeholder="Ex: Camiseta, Escova, Carregador" />
+  </div>
+
+  <div style="margin-top: 10px">
+    <label>Quantidade</label><br />
+    <input type="number" formControlName="qty" />
+  </div>
+
+  <div style="margin-top: 10px">
+    <label>Unidade</label><br />
+    <input formControlName="unit" placeholder="Ex: unidade, pacote, kg" />
+  </div>
+
+  <div style="margin-top: 10px">
+    <label>Observações</label><br />
+    <textarea formControlName="notes"></textarea>
+  </div>
+
+  <button type="submit" style="margin-top: 12px">
+    Criar item
+  </button>
+</form>
+
+<hr />
+
+<h3>Itens da viagem</h3>
+
+<p *ngIf="items.length === 0">
+  Nenhum item cadastrado ainda.
+</p>
+
+<ul>
+  <li *ngFor="let item of items" style="margin-bottom: 12px">
+    <strong>{{ item.title }}</strong>
+
+    <span *ngIf="item.qty">
+      — {{ item.qty }} {{ item.unit }}
+    </span>
+
+    <br />
+
+    <small>
+      Categoria: {{ item.category_name }} |
+      Modo: {{ item.category_mode }} |
+      Status: {{ item.my_status }}
+    </small>
+
+    <div style="margin-top: 6px">
+      <button type="button" (click)="markDone(item)">
+        Marcar como feito
+      </button>
+
+      <button type="button" (click)="markPending(item)">
+        Marcar como pendente
+      </button>
+
+      <button
+        *ngIf="item.category_mode === 'CLAIMABLE' && !item.my_claimed"
+        type="button"
+        (click)="claim(item)"
+      >
+        Assumir item
+      </button>
+
+      <button
+        *ngIf="item.category_mode === 'CLAIMABLE' && item.my_claimed"
+        type="button"
+        (click)="unclaim(item)"
+      >
+        Liberar item
+      </button>
+    </div>
+  </li>
+</ul>

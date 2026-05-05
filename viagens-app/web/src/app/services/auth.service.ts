@@ -10,7 +10,7 @@ type AuthResponse = { token: string; user: any };
 export class AuthService {
   private base = environment.apiUrl;
 
-  constructor(private http: HttpClient, private token: TokenService) {}
+  constructor(private http: HttpClient, private token: TokenService) { }
 
   register(payload: { name: string; email: string; password: string }) {
     return this.http.post<AuthResponse>(`${this.base}/auth/register`, payload).pipe(

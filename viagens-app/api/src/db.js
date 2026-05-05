@@ -20,7 +20,7 @@ if (!raw) throw new Error("DATABASE_URL não definida no .env");
 
 const isLocal =
   raw.includes("localhost")
-  raw.includes("127.0.0.1");
+raw.includes("127.0.0.1");
 
 const pool = new Pool({
   connectionString: stripSslParams(raw),

@@ -40,6 +40,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Erro interno" });
 });
 
+app.get("/", (req, res) => {
+  res.send("API MochilaOk rodando. Teste /health");
+});
+
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {

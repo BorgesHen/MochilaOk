@@ -25,11 +25,19 @@ export class LoginComponent {
 
   submit() {
     this.error = null;
-    if (this.form.invalid) return;
+
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
     this.auth.login(this.form.value as any).subscribe({
-      next: () => this.router.navigateByUrl('/destinations'),
-      error: (e: any) => (this.error = e?.error?.error ?? 'Falha no login'),
+      next: () => {
+        this.router.navigate(['/destinations'], { replaceUrl: true });
+      },
+      error: (e: any) => {
+        this.error = e?.error?.error ?? 'Falha no login';
+      },
     });
   }
 }

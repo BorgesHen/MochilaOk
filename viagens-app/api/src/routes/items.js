@@ -1,7 +1,12 @@
 const express = require("express");
 const { pool } = require("../db");
 const { requireAuth } = require("../middleware/requireAuth");
-const { ensureDestinationAccess, ensureItemAccess } = require("../lib/access");
+const {
+  ensureDestinationAccess,
+  ensureDestinationAdmin,
+  ensureItemAccess,
+  ensureItemAdmin,
+} = require("../lib/access");
 
 const router = express.Router();
 const ALLOWED_STATUS = new Set(["PENDING", "DONE"]);
@@ -18,19 +23,30 @@ router.get("/:destinationId/items", requireAuth, async (req, res) => {
       i.id, i.destination_id, i.category_id, i.title, i.qty, i.unit, i.notes, i.created_by, i.created_at,
       c.name AS category_name,
       c.mode AS category_mode,
-      COALESCE(iu.status, 'PENDING') AS my_status,
+      COALESCE(
+        CASE
+          WHEN c.mode = 'CLAIMABLE' THEN cl.status
+          ELSE iu.status
+        END,
+        'PENDING'
+      ) AS my_status,
       COALESCE(iu.claimed, false) AS my_claimed,
-      cl.user_id AS claimed_by
+      cl.user_id AS claimed_by,
+      cl.status AS claimed_status,
+      cu.name AS claimed_by_name,
+      cu.email AS claimed_by_email
     FROM items i
     JOIN categories c ON c.id = i.category_id
     LEFT JOIN item_user iu
       ON iu.item_id = i.id AND iu.user_id = $2
     LEFT JOIN LATERAL (
-      SELECT user_id
+      SELECT user_id, status
       FROM item_user
       WHERE item_id = i.id AND claimed = true
+      ORDER BY updated_at DESC NULLS LAST
       LIMIT 1
     ) cl ON true
+    LEFT JOIN users cu ON cu.id = cl.user_id
     WHERE i.destination_id = $1
     ORDER BY c.sort_order ASC, c.name ASC, i.created_at DESC
     `,
@@ -45,7 +61,7 @@ router.post("/:destinationId/items", requireAuth, async (req, res) => {
   const destinationId = req.params.destinationId;
   const { category_id, title, qty, unit, notes } = req.body;
 
-  await ensureDestinationAccess(userId, destinationId);
+  await ensureDestinationAdmin(userId, destinationId);
 
   if (!category_id) return res.status(400).json({ error: "category_id é obrigatório" });
   if (!title || String(title).trim().length < 2) return res.status(400).json({ error: "title é obrigatório (mín 2)" });
@@ -69,11 +85,66 @@ router.post("/:destinationId/items", requireAuth, async (req, res) => {
       qty == null ? null : Number(qty),
       unit || null,
       notes || null,
-      userId
+      userId,
     ]
   );
 
   res.status(201).json(ins.rows[0]);
+});
+
+router.patch("/items/:itemId", requireAuth, async (req, res) => {
+  const userId = req.user.sub;
+  const itemId = req.params.itemId;
+  const item = await ensureItemAdmin(userId, itemId);
+
+  const { category_id, title, qty, unit, notes } = req.body;
+
+  if (!category_id) return res.status(400).json({ error: "category_id é obrigatório" });
+  if (!title || String(title).trim().length < 2) return res.status(400).json({ error: "title é obrigatório (mín 2)" });
+
+  const cat = await pool.query(
+    `SELECT id FROM categories WHERE id = $1 AND destination_id = $2`,
+    [category_id, item.destination_id]
+  );
+  if (cat.rows.length === 0) return res.status(400).json({ error: "Categoria inválida para esta viagem" });
+
+  const q = await pool.query(
+    `
+    UPDATE items
+    SET category_id = $1, title = $2, qty = $3, unit = $4, notes = $5
+    WHERE id = $6
+    RETURNING *
+    `,
+    [
+      category_id,
+      String(title).trim(),
+      qty == null ? null : Number(qty),
+      unit || null,
+      notes || null,
+      itemId,
+    ]
+  );
+
+  res.json(q.rows[0]);
+});
+
+router.delete("/items/:itemId", requireAuth, async (req, res) => {
+  const item = await ensureItemAdmin(req.user.sub, req.params.itemId);
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM item_user WHERE item_id = $1`, [item.id]);
+    await client.query(`DELETE FROM items WHERE id = $1`, [item.id]);
+    await client.query("COMMIT");
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
 router.patch("/items/:itemId/claim", requireAuth, async (req, res) => {
@@ -94,34 +165,43 @@ router.patch("/items/:itemId/claim", requireAuth, async (req, res) => {
   );
 
   if (qMode.rows[0]?.mode !== "CLAIMABLE") {
-    return res.status(400).json({ error: "Este item não é claimable" });
+    return res.status(400).json({ error: "Este item não é assumível" });
   }
 
   if (claimed) {
-    try {
-      await pool.query(
-        `
-        INSERT INTO item_user (item_id, user_id, claimed, status)
-        VALUES ($1, $2, true, 'PENDING')
-        ON CONFLICT (item_id, user_id)
-        DO UPDATE SET claimed = true, updated_at = now()
-        `,
-        [itemId, userId]
-      );
-      return res.json({ ok: true, claimed: true });
-    } catch (err) {
-      if (err.code === "23505") {
-        return res.status(409).json({ error: "Este item já foi claimado por outra pessoa" });
-      }
-      return res.status(500).json({ error: err.message });
-    }
-  } else {
-    await pool.query(
-      `UPDATE item_user SET claimed = false, updated_at = now() WHERE item_id = $1 AND user_id = $2`,
+    const alreadyClaimed = await pool.query(
+      `
+      SELECT user_id
+      FROM item_user
+      WHERE item_id = $1 AND claimed = true AND user_id <> $2
+      LIMIT 1
+      `,
       [itemId, userId]
     );
-    return res.json({ ok: true, claimed: false });
+
+    if (alreadyClaimed.rows.length > 0) {
+      return res.status(409).json({ error: "Este item já foi assumido por outra pessoa" });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO item_user (item_id, user_id, claimed, status)
+      VALUES ($1, $2, true, 'PENDING')
+      ON CONFLICT (item_id, user_id)
+      DO UPDATE SET claimed = true, updated_at = now()
+      `,
+      [itemId, userId]
+    );
+
+    return res.json({ ok: true, claimed: true });
   }
+
+  await pool.query(
+    `UPDATE item_user SET claimed = false, updated_at = now() WHERE item_id = $1 AND user_id = $2`,
+    [itemId, userId]
+  );
+
+  return res.json({ ok: true, claimed: false });
 });
 
 router.patch("/items/:itemId/status", requireAuth, async (req, res) => {
@@ -153,7 +233,7 @@ router.patch("/items/:itemId/status", requireAuth, async (req, res) => {
       [itemId, userId]
     );
     if (mine.rows.length === 0 || mine.rows[0].claimed !== true) {
-      return res.status(403).json({ error: "Você precisa claimar antes de mudar o status" });
+      return res.status(403).json({ error: "Você precisa assumir o item antes de mudar o status" });
     }
   }
 

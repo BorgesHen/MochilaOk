@@ -1,22 +1,115 @@
-<h2>Minhas Viagens</h2>
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-brand">
+      <img class="brand-logo header-logo" src="/mochilaok-logo.jpeg" alt="MochilaOK" />
+      <div>
+        <h1>Minhas Viagens</h1>
+        <p>Organize suas próximas aventuras</p>
+      </div>
+    </div>
 
-<p *ngIf="error" style="color:red">{{ error }}</p>
+    <button class="btn btn-ghost" type="button" (click)="logout()">Sair</button>
+  </header>
 
-<h3>Criar viagem</h3>
-<form [formGroup]="form" (ngSubmit)="create()">
-  <input placeholder="Título" formControlName="title" />
-  <input placeholder="Local (opcional)" formControlName="location" />
-  <button type="submit">Criar</button>
-</form>
+  <main class="content-area">
+    <section class="hero-card">
+      <div>
+        <span class="eyebrow">Painel de viagens</span>
+        <h2>Crie uma viagem e comece a montar sua mochila.</h2>
+        <p>
+          Cada viagem criada aqui fica vinculada ao seu usuário e depois permite cadastrar
+          categorias, itens e responsáveis.
+        </p>
+      </div>
 
-<hr />
+      <button class="btn btn-primary" type="button" (click)="openCreateForm()" *ngIf="!showForm">
+        + Criar nova viagem
+      </button>
+    </section>
 
-<ul>
-  <li *ngFor="let d of destinations">
-    <a [routerLink]="['/destinations', d.id]">
-      <b>{{ d.title }}</b>
-    </a>
-    <span *ngIf="d.location"> — {{ d.location }}</span>
-    <small> ({{ d.my_role }})</small>
-  </li>
-</ul>
+    <p *ngIf="error" class="alert error-alert">{{ error }}</p>
+
+    <section class="form-card" *ngIf="showForm">
+      <div class="section-title-row">
+        <div>
+          <h3>Nova viagem</h3>
+          <p>Informe o nome da viagem e, opcionalmente, o destino.</p>
+        </div>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="create()" class="form-grid two-cols">
+        <label class="field">
+          <span>Título da viagem</span>
+          <input type="text" formControlName="title" placeholder="Ex: Viagem para Ubatuba" />
+        </label>
+
+        <label class="field">
+          <span>Destino / local</span>
+          <input type="text" formControlName="location" placeholder="Ex: Ubatuba - SP" />
+        </label>
+
+        <div class="form-actions span-all">
+          <button class="btn btn-primary" type="submit" [disabled]="loading">
+            {{ loading ? 'Salvando...' : 'Salvar viagem' }}
+          </button>
+          <button class="btn btn-muted" type="button" (click)="cancelCreate()">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="board-scroll" aria-label="Lista de viagens">
+      <article class="board-column wide-column">
+        <div class="column-header">
+          <h3>A planejar</h3>
+          <span class="count-pill">{{ destinations.length }}</span>
+        </div>
+
+        <div class="column-body">
+          <a class="travel-card link-card" *ngFor="let d of destinations" [routerLink]="['/destinations', d.id]">
+            <div class="card-topline">
+              <h4>{{ d.title }}</h4>
+              <span class="badge">{{ d.my_role || 'owner' }}</span>
+            </div>
+
+            <p *ngIf="d.location" class="card-description">{{ d.location }}</p>
+
+            <div class="meta-row">
+              <span>📍 {{ d.location || 'Destino não informado' }}</span>
+              <span *ngIf="d.created_at">📅 {{ d.created_at | date: 'dd/MM/yyyy' }}</span>
+            </div>
+          </a>
+
+          <button class="add-card-button" type="button" (click)="openCreateForm()">
+            + Adicionar viagem
+          </button>
+
+          <p *ngIf="destinations.length === 0" class="empty-state">
+            Nenhuma viagem cadastrada ainda. Clique em “Criar nova viagem” para começar.
+          </p>
+        </div>
+      </article>
+
+      <article class="board-column helper-column">
+        <div class="column-header">
+          <h3>Próximo passo</h3>
+          <span class="count-pill">3</span>
+        </div>
+
+        <div class="column-body">
+          <div class="travel-card muted-card">
+            <h4>1. Crie a viagem</h4>
+            <p>Depois de salvar, você será levado para a tela de organização da mochila.</p>
+          </div>
+          <div class="travel-card muted-card">
+            <h4>2. Cadastre categorias</h4>
+            <p>Exemplos: roupas, higiene, documentos, comida e equipamentos.</p>
+          </div>
+          <div class="travel-card muted-card">
+            <h4>3. Adicione itens</h4>
+            <p>Marque itens como feitos ou assuma responsabilidades compartilhadas.</p>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</div>

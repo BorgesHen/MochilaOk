@@ -1,136 +1,375 @@
-<p>
-  <a routerLink="/destinations">← Voltar para minhas viagens</a>
-</p>
-
-<h2>{{ destination?.title }}</h2>
-
-<p *ngIf="destination?.location">
-  Local: {{ destination.location }}
-</p>
-
-<p *ngIf="error" style="color: red">
-  {{ error }}
-</p>
-
-<hr />
-
-<h3>Criar categoria</h3>
-
-<form [formGroup]="categoryForm" (ngSubmit)="createCategory()">
-  <div>
-    <label>Nome da categoria</label><br />
-    <input formControlName="name" placeholder="Ex: Roupas, Higiene, Comida" />
-  </div>
-
-  <div style="margin-top: 10px">
-    <label>Modo</label><br />
-
-    <select formControlName="mode">
-      <option value="PER_USER">Cada pessoa precisa fazer</option>
-      <option value="CLAIMABLE">Uma pessoa assume o item</option>
-    </select>
-  </div>
-
-  <div style="margin-top: 10px">
-    <label>Ordem</label><br />
-    <input type="number" formControlName="sort_order" />
-  </div>
-
-  <button type="submit" style="margin-top: 12px">
-    Criar categoria
-  </button>
-</form>
-
-<hr />
-
-<h3>Criar item</h3>
-
-<form [formGroup]="itemForm" (ngSubmit)="createItem()">
-  <div>
-    <label>Categoria</label><br />
-
-    <select formControlName="category_id">
-      <option value="">Selecione uma categoria</option>
-
-      <option *ngFor="let c of categories" [value]="c.id">
-        {{ c.name }} — {{ c.mode }}
-      </option>
-    </select>
-  </div>
-
-  <div style="margin-top: 10px">
-    <label>Item</label><br />
-    <input formControlName="title" placeholder="Ex: Camiseta, Escova, Carregador" />
-  </div>
-
-  <div style="margin-top: 10px">
-    <label>Quantidade</label><br />
-    <input type="number" formControlName="qty" />
-  </div>
-
-  <div style="margin-top: 10px">
-    <label>Unidade</label><br />
-    <input formControlName="unit" placeholder="Ex: unidade, pacote, kg" />
-  </div>
-
-  <div style="margin-top: 10px">
-    <label>Observações</label><br />
-    <textarea formControlName="notes"></textarea>
-  </div>
-
-  <button type="submit" style="margin-top: 12px">
-    Criar item
-  </button>
-</form>
-
-<hr />
-
-<h3>Itens da viagem</h3>
-
-<p *ngIf="items.length === 0">
-  Nenhum item cadastrado ainda.
-</p>
-
-<ul>
-  <li *ngFor="let item of items" style="margin-bottom: 12px">
-    <strong>{{ item.title }}</strong>
-
-    <span *ngIf="item.qty">
-      — {{ item.qty }} {{ item.unit }}
-    </span>
-
-    <br />
-
-    <small>
-      Categoria: {{ item.category_name }} |
-      Modo: {{ item.category_mode }} |
-      Status: {{ item.my_status }}
-    </small>
-
-    <div style="margin-top: 6px">
-      <button type="button" (click)="markDone(item)">
-        Marcar como feito
-      </button>
-
-      <button type="button" (click)="markPending(item)">
-        Marcar como pendente
-      </button>
-
-      <button
-        *ngIf="item.category_mode === 'CLAIMABLE' && !item.my_claimed"
-        type="button"
-        (click)="claim(item)"
-      >
-        Assumir item
-      </button>
-
-      <button
-        *ngIf="item.category_mode === 'CLAIMABLE' && item.my_claimed"
-        type="button"
-        (click)="unclaim(item)"
-      >
-        Liberar item
-      </button>
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-brand">
+      <img class="brand-logo header-logo" src="/mochilaok-logo.jpeg" alt="MochilaOK" />
+      <div>
+        <a class="back-link" routerLink="/destinations">← Voltar para minhas viagens</a>
+        <h1>{{ destination?.title || (loadingDestination ? 'Carregando viagem...' : 'Viagem') }}</h1>
+        <p>{{ destination?.location || 'Destino ainda não informado' }}</p>
+      </div>
     </div>
-  </li>
-</ul>
+
+    <button *ngIf="isAdmin()" class="btn btn-muted" type="button" (click)="editDestination()">
+      Editar viagem
+    </button>
+  </header>
+
+  <main class="content-area">
+    <section class="hero-card detail-hero">
+      <div>
+        <span class="eyebrow">Organização estilo Trello</span>
+        <h2>Monte categorias, convide pessoas e distribua responsabilidades.</h2>
+        <p>
+          Administradores criam e editam a viagem. Convidados interagem com os checklists,
+          marcam tarefas e assumem itens como compras ou objetos para levar.
+        </p>
+      </div>
+
+      <div class="stats-row">
+        <span class="stat-pill">{{ roleLabel(destination?.my_role) }}</span>
+        <span class="stat-pill">{{ categories.length }} categorias</span>
+        <span class="stat-pill">{{ items.length }} itens</span>
+        <span class="stat-pill">{{ members.length }} membros</span>
+      </div>
+    </section>
+
+    <p *ngIf="error" class="alert error-alert">{{ error }}</p>
+    <p *ngIf="success" class="alert success-alert">{{ success }}</p>
+
+    <section *ngIf="loadingDestination" class="form-card loading-card">
+      <h3>Carregando permissões da viagem...</h3>
+      <p>Aguarde enquanto o sistema verifica se você é administrador ou convidado.</p>
+    </section>
+
+    <section *ngIf="isAdmin()" class="form-card admin-quick-panel">
+      <div class="section-title-row">
+        <div>
+          <h3>Painel do administrador</h3>
+          <p>Use os botões abaixo para montar a viagem na mesma tela.</p>
+        </div>
+      </div>
+
+      <div class="admin-quick-actions">
+        <button class="btn btn-primary" type="button" (click)="openCategoryForm()">
+          + Adicionar categoria
+        </button>
+
+        <button
+          class="btn btn-muted"
+          type="button"
+          (click)="openItemForm()"
+          [disabled]="categories.length === 0"
+          title="Crie uma categoria antes de adicionar itens"
+        >
+          + Adicionar item
+        </button>
+
+        <button class="btn btn-outline" type="button" (click)="openInviteForm()">
+          + Adicionar membro
+        </button>
+      </div>
+    </section>
+
+    <section class="admin-layout">
+      <article class="form-card members-card">
+        <div class="section-title-row">
+          <div>
+            <h3>Participantes da viagem</h3>
+            <p>O criador da viagem é administrador. Convidados podem marcar e assumir itens.</p>
+          </div>
+
+          <button *ngIf="isAdmin() && !showInviteForm" class="btn btn-small btn-primary" type="button" (click)="openInviteForm()">
+            + Membro
+          </button>
+        </div>
+
+        <form *ngIf="isAdmin() && showInviteForm" [formGroup]="inviteForm" (ngSubmit)="inviteMember()" class="form-grid invite-form">
+          <label class="field">
+            <span>E-mail da pessoa</span>
+            <input formControlName="email" placeholder="email@exemplo.com" />
+          </label>
+
+          <label class="field compact-field">
+            <span>Permissão</span>
+            <select formControlName="role">
+              <option value="MEMBER">Convidado</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </label>
+
+          <div class="form-actions span-all">
+            <button class="btn btn-primary" type="submit" [disabled]="inviteLoading">
+              {{ inviteLoading ? 'Convidando...' : 'Convidar pessoa' }}
+            </button>
+
+            <button class="btn btn-ghost" type="button" (click)="closeInviteForm()">
+              Fechar
+            </button>
+          </div>
+        </form>
+
+        <div class="members-list">
+          <div class="member-row" *ngFor="let member of members">
+            <div>
+              <strong>{{ member.name }}</strong>
+              <span>{{ member.email }}</span>
+            </div>
+
+            <div class="member-actions">
+              <span class="badge">{{ roleLabel(member.role) }}</span>
+              <span *ngIf="member.is_owner" class="badge owner-badge">Criador</span>
+
+              <select
+                *ngIf="isAdmin() && !member.is_owner"
+                [value]="member.role"
+                (change)="changeMemberRole(member, $any($event.target).value)"
+              >
+                <option value="MEMBER">Convidado</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+
+              <button
+                *ngIf="isAdmin() && !member.is_owner"
+                class="btn btn-small btn-ghost danger-button"
+                type="button"
+                (click)="removeMember(member)"
+              >
+                Remover
+              </button>
+            </div>
+          </div>
+
+          <p *ngIf="!loadingDestination && members.length === 0" class="empty-state compact">
+            Nenhum participante carregado. Rode o SQL de permissões para garantir que o criador da viagem esteja como administrador.
+          </p>
+        </div>
+      </article>
+
+      <article *ngIf="!loadingDestination && !isAdmin()" class="form-card guest-card">
+        <h3>Você está como convidado</h3>
+        <p>
+          Você pode marcar tarefas como feitas, assumir itens disponíveis e liberar itens que assumiu.
+          A criação e edição de categorias, itens e participantes fica com o administrador da viagem.
+        </p>
+      </article>
+    </section>
+
+    <section *ngIf="isAdmin() && (showCategoryForm || showItemForm)" class="forms-panel" [class.single-panel]="!(showCategoryForm && showItemForm)">
+      <article *ngIf="showCategoryForm" class="form-card">
+        <div class="section-title-row">
+          <div>
+            <h3>Nova categoria</h3>
+            <p>Exemplos: roupas, higiene, documentos, comida.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="categoryForm" (ngSubmit)="createCategory()" class="form-grid">
+          <label class="field">
+            <span>Nome da categoria</span>
+            <input formControlName="name" placeholder="Ex: Roupas" />
+          </label>
+
+          <label class="field">
+            <span>Modo</span>
+            <select formControlName="mode">
+              <option value="PER_USER">Checklist por pessoa</option>
+              <option value="CLAIMABLE">Item assumível</option>
+            </select>
+          </label>
+
+          <label class="field compact-field">
+            <span>Ordem</span>
+            <input type="number" formControlName="sort_order" />
+          </label>
+
+          <div class="form-actions span-all">
+            <button class="btn btn-primary" type="submit" [disabled]="categoryLoading">
+              {{ categoryLoading ? 'Criando...' : 'Criar categoria' }}
+            </button>
+
+            <button class="btn btn-ghost" type="button" (click)="closeCategoryForm()">
+              Fechar
+            </button>
+          </div>
+        </form>
+      </article>
+
+      <article *ngIf="showItemForm" class="form-card">
+        <div class="section-title-row">
+          <div>
+            <h3>Novo item</h3>
+            <p>Escolha a categoria e cadastre o que precisa ser levado ou feito.</p>
+          </div>
+        </div>
+
+        <form [formGroup]="itemForm" (ngSubmit)="createItem()" class="form-grid two-cols">
+          <label class="field">
+            <span>Categoria</span>
+            <select formControlName="category_id">
+              <option value="">Selecione uma categoria</option>
+              <option *ngFor="let c of categories" [value]="c.id">
+                {{ c.name }} — {{ modeLabel(c.mode) }}
+              </option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Item</span>
+            <input formControlName="title" placeholder="Ex: Camiseta, escova, carregador" />
+          </label>
+
+          <label class="field compact-field">
+            <span>Quantidade</span>
+            <input type="number" formControlName="qty" />
+          </label>
+
+          <label class="field compact-field">
+            <span>Unidade</span>
+            <input formControlName="unit" placeholder="unidade, pacote, kg" />
+          </label>
+
+          <label class="field span-all">
+            <span>Observações</span>
+            <textarea formControlName="notes" placeholder="Alguma informação importante sobre o item"></textarea>
+          </label>
+
+          <div class="form-actions span-all">
+            <button class="btn btn-primary" type="submit" [disabled]="itemLoading || categories.length === 0">
+              {{ itemLoading ? 'Criando...' : 'Criar item' }}
+            </button>
+
+            <button class="btn btn-ghost" type="button" (click)="closeItemForm()">
+              Fechar
+            </button>
+          </div>
+        </form>
+      </article>
+    </section>
+
+    <section class="board-scroll" aria-label="Itens por categoria">
+      <article class="board-column" *ngFor="let category of categories">
+        <div class="column-header">
+          <div>
+            <h3>{{ category.name }}</h3>
+            <span class="column-subtitle">{{ modeLabel(category.mode) }}</span>
+          </div>
+          <span class="count-pill">{{ itemsByCategory(category.id).length }}</span>
+        </div>
+
+        <div *ngIf="isAdmin()" class="column-admin-actions">
+          <button class="btn btn-small btn-primary" type="button" (click)="openItemFormForCategory(category)">
+            + Item
+          </button>
+          <button class="btn btn-small btn-muted" type="button" (click)="editCategory(category)">
+            Editar
+          </button>
+          <button class="btn btn-small btn-ghost danger-button" type="button" (click)="deleteCategory(category)">
+            Excluir
+          </button>
+        </div>
+
+        <div class="column-body">
+          <div class="travel-card item-card" *ngFor="let item of itemsByCategory(category.id)">
+            <div class="card-topline">
+              <h4>{{ item.title }}</h4>
+              <span class="status-badge" [class.done]="item.my_status === 'DONE'">
+                {{ item.my_status === 'DONE' ? 'Feito' : 'Pendente' }}
+              </span>
+            </div>
+
+            <p *ngIf="item.notes" class="card-description">{{ item.notes }}</p>
+
+            <div class="meta-row">
+              <span *ngIf="item.qty">Qtd: {{ item.qty }} {{ item.unit || '' }}</span>
+              <span *ngIf="item.category_mode === 'CLAIMABLE' && item.claimed_by_name">
+                Responsável: {{ item.claimed_by_name }}
+              </span>
+              <span *ngIf="item.category_mode === 'CLAIMABLE' && !item.claimed_by_name">
+                Disponível para assumir
+              </span>
+              <span *ngIf="item.category_mode === 'PER_USER'">
+                Cada pessoa marca seu próprio checklist
+              </span>
+            </div>
+
+            <div class="card-actions">
+              <button
+                class="btn btn-small btn-primary"
+                *ngIf="item.category_mode === 'PER_USER' || item.my_claimed"
+                type="button"
+                (click)="markDone(item)"
+              >
+                Marcar feito
+              </button>
+              <button
+                class="btn btn-small btn-muted"
+                *ngIf="item.category_mode === 'PER_USER' || item.my_claimed"
+                type="button"
+                (click)="markPending(item)"
+              >
+                Pendente
+              </button>
+              <button
+                class="btn btn-small btn-outline"
+                *ngIf="item.category_mode === 'CLAIMABLE' && !item.my_claimed && !item.claimed_by"
+                type="button"
+                (click)="claim(item)"
+              >
+                Assumir
+              </button>
+              <button
+                class="btn btn-small btn-outline"
+                *ngIf="item.category_mode === 'CLAIMABLE' && item.my_claimed"
+                type="button"
+                (click)="unclaim(item)"
+              >
+                Liberar
+              </button>
+              <button
+                class="btn btn-small btn-muted"
+                *ngIf="isAdmin()"
+                type="button"
+                (click)="editItem(item)"
+              >
+                Editar
+              </button>
+              <button
+                class="btn btn-small btn-ghost danger-button"
+                *ngIf="isAdmin()"
+                type="button"
+                (click)="deleteItem(item)"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+
+          <button *ngIf="isAdmin()" class="add-card-button" type="button" (click)="openItemFormForCategory(category)">
+            + Adicionar item nesta categoria
+          </button>
+
+          <p *ngIf="itemsByCategory(category.id).length === 0" class="empty-state compact">
+            Nenhum item nesta categoria.
+          </p>
+        </div>
+      </article>
+
+      <article class="board-column helper-column" *ngIf="categories.length === 0">
+        <div class="column-header">
+          <h3>Comece por uma categoria</h3>
+          <span class="count-pill">0</span>
+        </div>
+        <div class="column-body">
+          <div class="travel-card muted-card">
+            <h4>Exemplo</h4>
+            <p>Crie uma categoria como “Roupas” para depois adicionar itens como camisetas e calças.</p>
+          </div>
+
+          <button *ngIf="isAdmin()" class="add-card-button" type="button" (click)="openCategoryForm()">
+            + Criar primeira categoria
+          </button>
+        </div>
+      </article>
+    </section>
+  </main>
+</div>

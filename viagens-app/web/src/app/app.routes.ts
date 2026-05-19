@@ -11,9 +11,6 @@ export const routes: Routes = [
 
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
-<<<<<<< HEAD
-  { path: 'destinations', component: DestinationsComponent }
-=======
 
   {
     path: 'destinations',
@@ -28,5 +25,4 @@ export const routes: Routes = [
 
   { path: 'dashboard', redirectTo: 'destinations', pathMatch: 'full' },
   { path: '**', redirectTo: 'login' },
->>>>>>> 8eb8dff759c237c18d89552c2b88a020fed0303e
 ];

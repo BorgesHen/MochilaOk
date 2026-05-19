@@ -14,13 +14,13 @@ export class AuthService {
 
   register(payload: { name: string; email: string; password: string }) {
     return this.http.post<AuthResponse>(`${this.base}/auth/register`, payload).pipe(
-      tap((r) => this.token.set(r.token))
+      tap((r: AuthResponse) => this.token.set(r.token))
     );
   }
 
   login(payload: { email: string; password: string }) {
     return this.http.post<AuthResponse>(`${this.base}/auth/login`, payload).pipe(
-      tap((r) => this.token.set(r.token))
+      tap((r: AuthResponse) => this.token.set(r.token))
     );
   }
 

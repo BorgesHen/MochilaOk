@@ -2,10 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-<<<<<<< HEAD
 
-=======
->>>>>>> 8eb8dff759c237c18d89552c2b88a020fed0303e
 import { DestinationsService } from '../../services/destinations.service';
 import { AuthService } from '../../services/auth.service';
 
@@ -24,6 +21,7 @@ export class DestinationsComponent implements OnInit {
   destinations: any[] = [];
   error: string | null = null;
   showForm = false;
+  loading = false;
 
   form = this.fb.group({
     title: ['', [Validators.required, Validators.minLength(2)]],
@@ -67,33 +65,27 @@ export class DestinationsComponent implements OnInit {
       return;
     }
 
-    this.api.create(this.form.value as any).subscribe({
-      next: (created) => {
-<<<<<<< HEAD
+    this.loading = true;
+
+    this.api.create(this.form.getRawValue() as any).subscribe({
+      next: (created: any) => {
+        this.loading = false;
         this.form.reset({
           title: '',
           location: '',
         });
-
         this.showForm = false;
-
         this.router.navigate(['/destinations', created.id]);
       },
       error: (e: any) => {
+        this.loading = false;
         this.error = e?.error?.error ?? 'Erro ao criar viagem';
-=======
-        this.form.reset();
-        this.router.navigate(['/destinations', created.id]);
->>>>>>> 8eb8dff759c237c18d89552c2b88a020fed0303e
       },
     });
   }
-<<<<<<< HEAD
 
   logout() {
     this.auth.logout();
     this.router.navigate(['/login']);
   }
-=======
->>>>>>> 8eb8dff759c237c18d89552c2b88a020fed0303e
 }

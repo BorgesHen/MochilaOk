@@ -1,49 +1,41 @@
-require ("dotenv").config();
+require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
+
 const authRoutes = require("./routes/auth");
 const categoriesRouter = require("./routes/categories");
-const { pool } = require("./db");
-const { requireAuth } = require("./middleware/requireAuth");
 const destinationsRouter = require("./routes/destinations");
 const itemsRouter = require("./routes/items");
 
-if (process.env.NODE_ENV !== "production") {
-  require("dotenv").config();
-}
-
 const app = express();
+
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:4200",
+    optionsSuccessStatus: 200,
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:4200",
-    optionsSuccessStatus: 200
-}));
+app.get("/", (req, res) => {
+  res.send("API MochilaOk rodando. Teste /health");
+});
 
-app.use(cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:4200",
-    optionsSuccessStatus: 200
-}));
 app.get("/health", (req, res) => res.send("OK"));
 
 app.use("/auth", authRoutes);
 app.use("/destinations", destinationsRouter);
 app.use("/destinations", categoriesRouter);
 app.use("/destinations", itemsRouter);
-
 app.use(itemsRouter);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: "Erro interno" });
+  res.status(err.status || 500).json({ error: err.message || "Erro interno" });
 });
-
-app.get("/", (req, res) => {
-  res.send("API MochilaOk rodando. Teste /health");
-});
-
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
